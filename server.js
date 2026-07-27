@@ -24,10 +24,14 @@ function sanitizeTabName(name) {
   return name.replace(/[^a-zA-Z0-9 ]/g, '').trim().slice(0, 30) || 'Sheet1';
 }
 
-async function syncToGoogleSheet({ city, sheetUrl, fileName }) {
+async function syncToGoogleSheet({ city, sheetUrl, fileName, rows }) {
   const spreadsheetId = extractSheetId(sheetUrl);
   if (!spreadsheetId) {
     throw new Error('A valid Google Sheets URL is required.');
+  }
+
+  if (!rows || rows.length === 0) {
+    throw new Error('No contact rows to sync.');
   }
 
   const serviceAccountEmail = process.env.GOOGLE_CLIENT_EMAIL;
@@ -37,7 +41,7 @@ async function syncToGoogleSheet({ city, sheetUrl, fileName }) {
     return {
       ok: true,
       mode: 'mock',
-      message: `Google Sheets credentials are not configured yet, so the app prepared a local sync simulation for ${city}.`,
+      message: `Google Sheets credentials are not configured yet. Would have synced ${rows.length} contacts for ${city} from ${fileName}.`,
       spreadsheetId,
     };
   }
@@ -69,26 +73,28 @@ async function syncToGoogleSheet({ city, sheetUrl, fileName }) {
   }
 
   const tabName = sanitizeTabName(city);
-  const row = [
-    new Date().toISOString(),
-    city,
-    fileName || 'No file selected',
-    sheetUrl,
-  ];
+
+  // Add header if sheet is empty
+  const existing = await sheets.spreadsheets.values.get({
+    spreadsheetId,
+    range: `${tabName}!A1`,
+  });
+  const isEmpty = !existing.data.values || existing.data.values.length === 0;
+  const valuesToAppend = isEmpty
+    ? [['Partner Number', 'Group Name', 'Member Name', 'Member Number'], ...rows]
+    : rows;
 
   await sheets.spreadsheets.values.append({
     spreadsheetId,
     range: `${tabName}!A1`,
     valueInputOption: 'USER_ENTERED',
-    requestBody: {
-      values: [row],
-    },
+    requestBody: { values: valuesToAppend },
   });
 
   return {
     ok: true,
     mode: 'live',
-    message: `Data for ${city} was synced to the connected Google Sheet in the ${tabName} tab.`,
+    message: `${rows.length} contacts from ${fileName} synced to the ${tabName} tab.`,
     spreadsheetId,
   };
 }

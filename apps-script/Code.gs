@@ -1,5 +1,5 @@
 const CITY_TABS = ['Bengaluru', 'Delhi', 'Mumbai', 'Hyderabad'];
-const DEFAULT_SHEET_URL = 'https://docs.google.com/spreadsheets/d/17nk2W-eNJVKbGa4fEdEoSrHOOPHidrLZRMkIrCklXBY/edit?usp=sharing';
+const HEADER_ROW = ['Partner Number', 'Group Name', 'Member Name', 'Member Number'];
 
 function doPost(e) {
   try {
@@ -7,39 +7,39 @@ function doPost(e) {
     const sheetUrl = payload.sheetUrl;
     const city = payload.city;
     const fileName = payload.fileName;
-    const csvText = payload.csvText;
+    const rows = payload.rows; // Array of [partnerNumber, groupName, memberName, memberNumber]
 
-    if (!sheetUrl || !city || (!fileName && !csvText)) {
-      return ContentService
-        .createTextOutput(JSON.stringify({ ok: false, message: 'Missing sheetUrl, city, and either fileName or csvText.' }))
-        .setMimeType(ContentService.MimeType.JSON);
+    if (!sheetUrl || !city || !rows || rows.length === 0) {
+      return jsonResponse({ ok: false, message: 'Missing sheetUrl, city, or rows.' });
     }
 
     const spreadsheetId = extractSpreadsheetId(sheetUrl);
     if (!spreadsheetId) {
-      return ContentService
-        .createTextOutput(JSON.stringify({ ok: false, message: 'Invalid Google Sheet URL.' }))
-        .setMimeType(ContentService.MimeType.JSON);
+      return jsonResponse({ ok: false, message: 'Invalid Google Sheet URL.' });
     }
 
     const ss = SpreadsheetApp.openById(spreadsheetId);
     ensureTabs(ss);
     const targetSheet = ss.getSheetByName(city) || ss.insertSheet(city);
 
-    if (csvText) {
-      appendCsvToSheet(targetSheet, csvText);
-    } else {
-      appendMetadataRow(targetSheet, city, fileName, sheetUrl);
+    // Add header if sheet is empty
+    if (targetSheet.getLastRow() === 0) {
+      targetSheet.appendRow(HEADER_ROW);
     }
 
-    return ContentService
-      .createTextOutput(JSON.stringify({ ok: true, message: `Success: synced ${city} data.` }))
-      .setMimeType(ContentService.MimeType.JSON);
+    // Append all rows
+    rows.forEach((row) => targetSheet.appendRow(row));
+
+    return jsonResponse({ ok: true, message: `${rows.length} contacts from ${fileName} synced to ${city} tab.` });
   } catch (error) {
-    return ContentService
-      .createTextOutput(JSON.stringify({ ok: false, message: error.message }))
-      .setMimeType(ContentService.MimeType.JSON);
+    return jsonResponse({ ok: false, message: error.message });
   }
+}
+
+function jsonResponse(obj) {
+  return ContentService
+    .createTextOutput(JSON.stringify(obj))
+    .setMimeType(ContentService.MimeType.JSON);
 }
 
 function extractSpreadsheetId(url) {
@@ -54,52 +54,4 @@ function ensureTabs(ss) {
       ss.insertSheet(tabName);
     }
   });
-}
-
-function appendCsvToSheet(sheet, csvText) {
-  const rows = Utilities.parseCsv(csvText);
-  if (rows.length === 0) {
-    throw new Error('CSV content is empty or invalid.');
-  }
-
-  const lastRow = sheet.getLastRow();
-  const startRow = lastRow === 0 ? 1 : lastRow + 1;
-  sheet.getRange(startRow, 1, rows.length, rows[0].length).setValues(rows);
-}
-
-function appendMetadataRow(sheet, city, fileName, sheetUrl) {
-  const lastRow = sheet.getLastRow();
-  const startRow = lastRow === 0 ? 1 : lastRow + 1;
-  sheet.getRange(startRow, 1, 1, 4).setValues([[new Date(), city, fileName || 'No file selected', sheetUrl]]);
-}
-
-function createTimeDrivenTrigger() {
-  ScriptApp.getProjectTriggers().forEach((trigger) => {
-    if (trigger.getHandlerFunction() === 'periodicSync') {
-      ScriptApp.deleteTrigger(trigger);
-    }
-  });
-
-  ScriptApp.newTrigger('periodicSync')
-    .timeBased()
-    .everyHours(2)
-    .create();
-}
-
-function periodicSync() {
-  const sheetUrl = DEFAULT_SHEET_URL;
-  if (!sheetUrl) {
-    Logger.log('No DEFAULT_SHEET_URL configured for periodic sync.');
-    return;
-  }
-
-  const spreadsheetId = extractSpreadsheetId(sheetUrl);
-  if (!spreadsheetId) {
-    Logger.log('Invalid DEFAULT_SHEET_URL.');
-    return;
-  }
-
-  const ss = SpreadsheetApp.openById(spreadsheetId);
-  ensureTabs(ss);
-  Logger.log('Periodic sync completed: ensured tabs exist.');
 }
