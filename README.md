@@ -23,9 +23,14 @@ This project is a Vite React frontend plus a small Express backend that helps sy
    ```env
    GOOGLE_CLIENT_EMAIL=your-service-account-email
    GOOGLE_PRIVATE_KEY=your-private-key
+   VITE_APP_SCRIPT_URL=
    PORT=3001
    VITE_API_URL=http://127.0.0.1:3001
    ```
+
+   - If you want to use Google Apps Script instead of the Express backend, set `VITE_APP_SCRIPT_URL` to your Apps Script web app URL.
+   - If you keep `VITE_APP_SCRIPT_URL` empty, the app will use the Express backend at `VITE_API_URL`.
+
 
 4. Share your Google Sheet with the service account email.
    - Open the Google Sheet
@@ -62,6 +67,30 @@ This project is a Vite React frontend plus a small Express backend that helps sy
    - `VITE_API_URL` = `https://your-backend.example.com`
 
 If you are only deploying the frontend, the backend must also be available online at the `VITE_API_URL` address.
+
+## Deploying the full app on Render
+
+This repo can deploy as a single Render Web Service because the backend serves the built frontend from `dist`.
+
+1. Create a new Web Service in Render.
+2. Connect your GitHub repo `vaibhavmishraint-sketch/whtsp`.
+3. Select branch `main`.
+4. Set the build command to:
+   ```bash
+   npm install && npm run build
+   ```
+5. Set the start command to:
+   ```bash
+   node server.js
+   ```
+6. Add environment variables in Render:
+   - `NODE_ENV=production`
+   - `VITE_API_URL=/api`
+   - `GOOGLE_CLIENT_EMAIL` = your service account email
+   - `GOOGLE_PRIVATE_KEY` = your service account private key
+7. Optional: set health check path to `/health`.
+
+Once deployed, the frontend will load from Render and API calls will go to `/api/sync-sheet` on the same service.
 
 ## Deploying the backend
 

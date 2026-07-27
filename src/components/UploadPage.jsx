@@ -1,7 +1,12 @@
 import { useState } from 'react';
 
 const cityTabs = ['Bengaluru', 'Delhi', 'Mumbai', 'Hyderabad'];
-const apiBaseUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:3001';
+const apiBaseUrl = import.meta.env.VITE_API_URL ||
+  (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+    ? 'http://127.0.0.1:3001'
+    : '/api');
+const appScriptUrl = import.meta.env.VITE_APP_SCRIPT_URL;
+const syncUrl = appScriptUrl ? appScriptUrl : `${apiBaseUrl}/api/sync-sheet`;
 
 function UploadPage({ city, onBack }) {
   const [sheetUrl, setSheetUrl] = useState(
@@ -29,7 +34,7 @@ function UploadPage({ city, onBack }) {
     setStatus(`Preparing the sheet and syncing ${city}...`);
 
     try {
-      const response = await fetch(`${apiBaseUrl}/api/sync-sheet`, {
+      const response = await fetch(syncUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ city, sheetUrl, fileName }),
@@ -48,7 +53,7 @@ function UploadPage({ city, onBack }) {
       const message = error.message || 'Something went wrong while syncing. Please try again.';
       setStatus(
         message.includes('Failed to fetch')
-          ? `Backend is not reachable at ${apiBaseUrl}. Start the backend or configure VITE_API_URL.`
+          ? `Sync endpoint is not reachable. Start the backend, configure VITE_API_URL, or set VITE_APP_SCRIPT_URL if using Apps Script.`
           : message
       );
     } finally {

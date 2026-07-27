@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import path from 'path';
 import { google } from 'googleapis';
 
 dotenv.config();
@@ -11,6 +12,7 @@ const cityTabs = ['Bengaluru', 'Delhi', 'Mumbai', 'Hyderabad'];
 
 app.use(cors());
 app.use(express.json());
+app.use(express.static(path.join(process.cwd(), 'dist'), { fallthrough: true, index: false }));
 
 function extractSheetId(sheetUrl) {
   if (!sheetUrl) return null;
@@ -104,6 +106,17 @@ app.get('/health', (_req, res) => {
   res.json({ status: 'ok' });
 });
 
-app.listen(port, '127.0.0.1', () => {
-  console.log(`Server ready on http://127.0.0.1:${port}`);
+app.get('/', (_req, res) => {
+  res.sendFile(path.join(process.cwd(), 'dist', 'index.html'));
+});
+
+app.use((req, res, next) => {
+  if (req.method === 'GET' && !req.path.startsWith('/api/')) {
+    return res.sendFile(path.join(process.cwd(), 'dist', 'index.html'));
+  }
+  next();
+});
+
+app.listen(port, '0.0.0.0', () => {
+  console.log(`Server ready on http://0.0.0.0:${port}`);
 });
