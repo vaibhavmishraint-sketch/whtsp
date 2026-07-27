@@ -45,7 +45,7 @@ async function syncToSheet({ city, fileName, rows }) {
     await sheets.spreadsheets.values.update({
       spreadsheetId,
       range: `${city}!A1`,
-      valueInputOption: 'USER_ENTERED',
+      valueInputOption: 'RAW',
       requestBody: { values: [['Partner Number', 'Group Name', 'Member Name', 'Member Number']] },
     });
   }
@@ -53,7 +53,7 @@ async function syncToSheet({ city, fileName, rows }) {
   await sheets.spreadsheets.values.append({
     spreadsheetId,
     range: `${city}!A1`,
-    valueInputOption: 'USER_ENTERED',
+    valueInputOption: 'RAW',
     requestBody: { values: rows },
   });
 

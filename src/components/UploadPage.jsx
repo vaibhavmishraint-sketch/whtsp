@@ -30,23 +30,33 @@ function parseExcelToRows(file) {
           const headers = rawRows[headerIdx].map((h) => String(h).trim().toLowerCase());
           const groupNameIdx = headers.findIndex((h) => h.includes('group name'));
           const memberIdIdx = headers.findIndex((h) => h.includes('member id'));
-          const nicknameIdx = headers.findIndex((h) => h.includes('nickname'));
-          const countryCodeIdx = headers.findIndex((h) => h.includes('country code'));
+          const remarkIdx = headers.findIndex((h) => h.includes('remark'));
+          const roleIdx = headers.findIndex((h) => h.includes('role'));
+
+          // Find admin's number for this sheet (Partner Number)
+          let partnerNumber = '';
+          for (let i = headerIdx + 1; i < rawRows.length; i++) {
+            const r = rawRows[i];
+            const role = String(r[roleIdx] ?? '').trim().toLowerCase();
+            if (role === 'admin') {
+              partnerNumber = String(r[memberIdIdx] ?? '').replace('@c.us', '').trim();
+              break;
+            }
+          }
 
           for (let i = headerIdx + 1; i < rawRows.length; i++) {
             const row = rawRows[i];
             if (!row || row.every((c) => c === '')) continue;
 
-            const memberId = String(row[memberIdIdx] ?? '').trim();
+            const rawMemberId = String(row[memberIdIdx] ?? '').trim();
+            const memberNumber = rawMemberId.replace('@c.us', '');
             const groupName = String(row[groupNameIdx] ?? sheetName).trim();
-            const memberName = String(row[nicknameIdx] ?? '').trim();
-            const countryCode = String(row[countryCodeIdx] ?? '').trim();
-            const memberNumber = countryCode ? `${countryCode}${memberId}` : memberId;
+            const memberName = String(row[remarkIdx] ?? '').trim();
 
-            if (!memberId) continue;
+            if (!rawMemberId) continue;
 
             // Partner Number | Group Name | Member Name | Member Number
-            rows.push([memberId, groupName, memberName, memberNumber]);
+            rows.push([partnerNumber, groupName, memberName, memberNumber]);
           }
         });
 
