@@ -8,7 +8,7 @@ dotenv.config();
 
 const app = express();
 const port = process.env.PORT || 3001;
-const SHARE_WITH_EMAIL = process.env.SHARE_WITH_EMAIL || '';
+const MASTER_SHEET_ID = process.env.MASTER_SHEET_ID || '1DdNS0dhicuLkC-VK6Q1vknvA5UirHLcQfH7lC3OM4VY';
 
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
@@ -21,53 +21,8 @@ function getAuth() {
   return new google.auth.JWT({
     email: creds.client_email,
     key: creds.private_key,
-    scopes: [
-      'https://www.googleapis.com/auth/spreadsheets',
-      'https://www.googleapis.com/auth/drive',
-    ],
+    scopes: ['https://www.googleapis.com/auth/spreadsheets'],
   });
-}
-
-async function getOrCreateSheet(auth, city) {
-  const drive = google.drive({ version: 'v3', auth });
-  const sheets = google.sheets({ version: 'v4', auth });
-
-  const sheetName = `WHATSAPP_DATA_${city.toUpperCase()}`;
-
-  // Check if sheet already exists
-  const list = await drive.files.list({
-    q: `name='${sheetName}' and mimeType='application/vnd.google-apps.spreadsheet' and trashed=false`,
-    fields: 'files(id, name)',
-  });
-
-  if (list.data.files.length > 0) {
-    return list.data.files[0].id;
-  }
-
-  // Create new sheet
-  const newSheet = await sheets.spreadsheets.create({
-    requestBody: { properties: { title: sheetName } },
-  });
-  const spreadsheetId = newSheet.data.spreadsheetId;
-
-  // Share with user email if configured
-  if (SHARE_WITH_EMAIL) {
-    await drive.permissions.create({
-      fileId: spreadsheetId,
-      requestBody: { role: 'writer', type: 'user', emailAddress: SHARE_WITH_EMAIL },
-      sendNotificationEmail: false,
-    });
-  }
-
-  // Add header row
-  await sheets.spreadsheets.values.update({
-    spreadsheetId,
-    range: 'Sheet1!A1',
-    valueInputOption: 'USER_ENTERED',
-    requestBody: { values: [['Partner Number', 'Group Name', 'Member Name', 'Member Number']] },
-  });
-
-  return spreadsheetId;
 }
 
 async function syncToSheet({ city, fileName, rows }) {
@@ -75,19 +30,36 @@ async function syncToSheet({ city, fileName, rows }) {
 
   const auth = getAuth();
   const sheets = google.sheets({ version: 'v4', auth });
+  const spreadsheetId = MASTER_SHEET_ID;
 
-  const spreadsheetId = await getOrCreateSheet(auth, city);
+  // Ensure city tab exists
+  const meta = await sheets.spreadsheets.get({ spreadsheetId });
+  const existingTabs = meta.data.sheets.map(s => s.properties.title);
+
+  if (!existingTabs.includes(city)) {
+    await sheets.spreadsheets.batchUpdate({
+      spreadsheetId,
+      requestBody: { requests: [{ addSheet: { properties: { title: city } } }] },
+    });
+    // Add header row for new tab
+    await sheets.spreadsheets.values.update({
+      spreadsheetId,
+      range: `${city}!A1`,
+      valueInputOption: 'USER_ENTERED',
+      requestBody: { values: [['Partner Number', 'Group Name', 'Member Name', 'Member Number']] },
+    });
+  }
 
   await sheets.spreadsheets.values.append({
     spreadsheetId,
-    range: 'Sheet1!A1',
+    range: `${city}!A1`,
     valueInputOption: 'USER_ENTERED',
     requestBody: { values: rows },
   });
 
   return {
     ok: true,
-    message: `${rows.length} contacts from ${fileName} synced for ${city}.`,
+    message: `${rows.length} contacts from ${fileName} synced to ${city} tab.`,
     sheetUrl: `https://docs.google.com/spreadsheets/d/${spreadsheetId}`,
   };
 }
