@@ -37,16 +37,32 @@ async function syncToSheet({ city, fileName, rows }) {
   const existingTabs = meta.data.sheets.map(s => s.properties.title);
 
   if (!existingTabs.includes(city)) {
-    await sheets.spreadsheets.batchUpdate({
+    const addRes = await sheets.spreadsheets.batchUpdate({
       spreadsheetId,
       requestBody: { requests: [{ addSheet: { properties: { title: city } } }] },
     });
-    // Add header row for new tab
+    const newSheetId = addRes.data.replies[0].addSheet.properties.sheetId;
+
+    // Add header row
     await sheets.spreadsheets.values.update({
       spreadsheetId,
       range: `${city}!A1`,
       valueInputOption: 'RAW',
       requestBody: { values: [['Group Name', 'Member Name', 'Member Number']] },
+    });
+
+    // Bold the header row
+    await sheets.spreadsheets.batchUpdate({
+      spreadsheetId,
+      requestBody: {
+        requests: [{
+          repeatCell: {
+            range: { sheetId: newSheetId, startRowIndex: 0, endRowIndex: 1 },
+            cell: { userEnteredFormat: { textFormat: { bold: true } } },
+            fields: 'userEnteredFormat.textFormat.bold',
+          },
+        }],
+      },
     });
   }
 
