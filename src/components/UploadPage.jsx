@@ -95,7 +95,7 @@ function UploadPage({ city, onBack }) {
       const response = await fetch(syncUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ city, sheetUrl, fileName: file.name, rows }),
+        body: JSON.stringify({ city, fileName: file.name, rows }),
       });
 
       const data = await response.json();
