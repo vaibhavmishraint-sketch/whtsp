@@ -2,106 +2,44 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import path from 'path';
-import { google } from 'googleapis';
 
 dotenv.config();
 
 const app = express();
 const port = process.env.PORT || 3001;
-const cityTabs = ['Bengaluru', 'Delhi', 'Mumbai', 'Hyderabad'];
+const APP_SCRIPT_URL = process.env.APP_SCRIPT_URL;
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
 app.use(express.static(path.join(process.cwd(), 'dist'), { fallthrough: true, index: false }));
 
-function extractSheetId(sheetUrl) {
-  if (!sheetUrl) return null;
-  const match = sheetUrl.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
-  return match?.[1] || null;
-}
-
-function sanitizeTabName(name) {
-  return name.replace(/[^a-zA-Z0-9 ]/g, '').trim().slice(0, 30) || 'Sheet1';
-}
-
-async function syncToGoogleSheet({ city, sheetUrl, fileName, rows }) {
-  const spreadsheetId = extractSheetId(sheetUrl);
-  if (!spreadsheetId) {
-    throw new Error('A valid Google Sheets URL is required.');
-  }
-
+async function syncViaAppScript({ city, sheetUrl, fileName, rows }) {
   if (!rows || rows.length === 0) {
     throw new Error('No contact rows to sync.');
   }
 
-  const serviceAccountEmail = process.env.GOOGLE_CLIENT_EMAIL;
-  const privateKey = process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n');
-
-  if (!serviceAccountEmail || !privateKey) {
-    return {
-      ok: true,
-      mode: 'mock',
-      message: `Google Sheets credentials are not configured yet. Would have synced ${rows.length} contacts for ${city} from ${fileName}.`,
-      spreadsheetId,
-    };
+  if (!APP_SCRIPT_URL) {
+    throw new Error('APP_SCRIPT_URL is not configured on the server.');
   }
 
-  const auth = new google.auth.JWT({
-    email: serviceAccountEmail,
-    key: privateKey,
-    scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+  const response = await fetch(APP_SCRIPT_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ city, sheetUrl, fileName, rows }),
+    redirect: 'follow',
   });
 
-  const sheets = google.sheets({ version: 'v4', auth });
-
-  const sheetMetadata = await sheets.spreadsheets.get({ spreadsheetId });
-  const existingTitles = (sheetMetadata.data.sheets || []).map((sheet) => sheet.properties?.title);
-
-  const requests = [];
-  for (const tabName of cityTabs) {
-    const title = sanitizeTabName(tabName);
-    if (!existingTitles.includes(title)) {
-      requests.push({ addSheet: { properties: { title } } });
-    }
+  const text = await response.text();
+  try {
+    return JSON.parse(text);
+  } catch {
+    throw new Error(`Apps Script returned unexpected response: ${text.slice(0, 200)}`);
   }
-
-  if (requests.length > 0) {
-    await sheets.spreadsheets.batchUpdate({
-      spreadsheetId,
-      requestBody: { requests },
-    });
-  }
-
-  const tabName = sanitizeTabName(city);
-
-  // Add header if sheet is empty
-  const existing = await sheets.spreadsheets.values.get({
-    spreadsheetId,
-    range: `${tabName}!A1`,
-  });
-  const isEmpty = !existing.data.values || existing.data.values.length === 0;
-  const valuesToAppend = isEmpty
-    ? [['Partner Number', 'Group Name', 'Member Name', 'Member Number'], ...rows]
-    : rows;
-
-  await sheets.spreadsheets.values.append({
-    spreadsheetId,
-    range: `${tabName}!A1`,
-    valueInputOption: 'USER_ENTERED',
-    requestBody: { values: valuesToAppend },
-  });
-
-  return {
-    ok: true,
-    mode: 'live',
-    message: `${rows.length} contacts from ${fileName} synced to the ${tabName} tab.`,
-    spreadsheetId,
-  };
 }
 
 app.post('/api/sync-sheet', async (req, res) => {
   try {
-    const result = await syncToGoogleSheet(req.body);
+    const result = await syncViaAppScript(req.body);
     res.json(result);
   } catch (error) {
     res.status(500).json({ ok: false, message: error.message || 'Sync failed.' });
