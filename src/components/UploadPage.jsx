@@ -1,6 +1,7 @@
 import { useState } from 'react';
 
 const cityTabs = ['Bengaluru', 'Delhi', 'Mumbai', 'Hyderabad'];
+const apiBaseUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:3001';
 
 function UploadPage({ city, onBack }) {
   const [sheetUrl, setSheetUrl] = useState(
@@ -28,7 +29,7 @@ function UploadPage({ city, onBack }) {
     setStatus(`Preparing the sheet and syncing ${city}...`);
 
     try {
-      const response = await fetch('http://127.0.0.1:3001/api/sync-sheet', {
+      const response = await fetch(`${apiBaseUrl}/api/sync-sheet`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ city, sheetUrl, fileName }),
@@ -44,7 +45,12 @@ function UploadPage({ city, onBack }) {
     } catch (error) {
       console.error(error);
       setStatusTone('error');
-      setStatus(error.message || 'Something went wrong while syncing. Please try again.');
+      const message = error.message || 'Something went wrong while syncing. Please try again.';
+      setStatus(
+        message.includes('Failed to fetch')
+          ? `Backend is not reachable at ${apiBaseUrl}. Start the backend or configure VITE_API_URL.`
+          : message
+      );
     } finally {
       setIsProcessing(false);
     }
