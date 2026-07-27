@@ -15,12 +15,12 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.static(path.join(process.cwd(), 'dist'), { fallthrough: true, index: false }));
 
 function getAuth() {
-  const email = process.env.GOOGLE_CLIENT_EMAIL;
-  const key = process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n');
-  if (!email || !key) throw new Error('Google credentials not configured.');
+  const b64 = process.env.GOOGLE_CREDENTIALS_B64;
+  if (!b64) throw new Error('GOOGLE_CREDENTIALS_B64 is not configured.');
+  const creds = JSON.parse(Buffer.from(b64, 'base64').toString('utf8'));
   return new google.auth.JWT({
-    email,
-    key,
+    email: creds.client_email,
+    key: creds.private_key,
     scopes: [
       'https://www.googleapis.com/auth/spreadsheets',
       'https://www.googleapis.com/auth/drive',
