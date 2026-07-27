@@ -6,11 +6,12 @@ function doPost(e) {
     const payload = JSON.parse(e.postData.contents);
     const sheetUrl = payload.sheetUrl;
     const city = payload.city;
+    const fileName = payload.fileName;
     const csvText = payload.csvText;
 
-    if (!sheetUrl || !city || !csvText) {
+    if (!sheetUrl || !city || (!fileName && !csvText)) {
       return ContentService
-        .createTextOutput(JSON.stringify({ ok: false, message: 'Missing sheetUrl, city, or csvText.' }))
+        .createTextOutput(JSON.stringify({ ok: false, message: 'Missing sheetUrl, city, and either fileName or csvText.' }))
         .setMimeType(ContentService.MimeType.JSON);
     }
 
@@ -24,7 +25,12 @@ function doPost(e) {
     const ss = SpreadsheetApp.openById(spreadsheetId);
     ensureTabs(ss);
     const targetSheet = ss.getSheetByName(city) || ss.insertSheet(city);
-    appendCsvToSheet(targetSheet, csvText);
+
+    if (csvText) {
+      appendCsvToSheet(targetSheet, csvText);
+    } else {
+      appendMetadataRow(targetSheet, city, fileName, sheetUrl);
+    }
 
     return ContentService
       .createTextOutput(JSON.stringify({ ok: true, message: `Success: synced ${city} data.` }))
@@ -59,6 +65,12 @@ function appendCsvToSheet(sheet, csvText) {
   const lastRow = sheet.getLastRow();
   const startRow = lastRow === 0 ? 1 : lastRow + 1;
   sheet.getRange(startRow, 1, rows.length, rows[0].length).setValues(rows);
+}
+
+function appendMetadataRow(sheet, city, fileName, sheetUrl) {
+  const lastRow = sheet.getLastRow();
+  const startRow = lastRow === 0 ? 1 : lastRow + 1;
+  sheet.getRange(startRow, 1, 1, 4).setValues([[new Date(), city, fileName || 'No file selected', sheetUrl]]);
 }
 
 function createTimeDrivenTrigger() {
