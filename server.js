@@ -46,7 +46,7 @@ async function syncToSheet({ city, fileName, rows }) {
       spreadsheetId,
       range: `${city}!A1`,
       valueInputOption: 'RAW',
-      requestBody: { values: [['Partner Number', 'Group Name', 'Member Name', 'Member Number']] },
+      requestBody: { values: [['Group Name', 'Member Name', 'Member Number']] },
     });
   }
 

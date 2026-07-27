@@ -61,6 +61,7 @@ h1 {
 
 .selected-city-title {
   font-size: 2.4rem;
+  font-weight: 800;
   margin: 0 0 20px;
   letter-spacing: -0.04em;
 }
@@ -177,4 +178,16 @@ h1 {
 .status.error {
   background: #fef2f2;
   color: #b91c1c;
+}
+
+.sheet-link {
+  display: inline-block;
+  margin-bottom: 16px;
+  color: #2563eb;
+  font-weight: 600;
+  text-decoration: none;
+  font-size: 0.95rem;
+}
+.sheet-link:hover {
+  text-decoration: underline;
 }

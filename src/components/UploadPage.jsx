@@ -33,17 +33,6 @@ function parseExcelToRows(file) {
           const remarkIdx = headers.findIndex((h) => h.includes('remark'));
           const roleIdx = headers.findIndex((h) => h.includes('role'));
 
-          // Find admin's number for this sheet (Partner Number)
-          let partnerNumber = '';
-          for (let i = headerIdx + 1; i < rawRows.length; i++) {
-            const r = rawRows[i];
-            const role = String(r[roleIdx] ?? '').trim().toLowerCase();
-            if (role === 'admin') {
-              partnerNumber = String(r[memberIdIdx] ?? '').replace('@c.us', '').trim();
-              break;
-            }
-          }
-
           for (let i = headerIdx + 1; i < rawRows.length; i++) {
             const row = rawRows[i];
             if (!row || row.every((c) => c === '')) continue;
@@ -55,8 +44,8 @@ function parseExcelToRows(file) {
 
             if (!rawMemberId) continue;
 
-            // Partner Number | Group Name | Member Name | Member Number
-            rows.push([partnerNumber, groupName, memberName, memberNumber]);
+            // Group Name | Member Name | Member Number
+            rows.push([groupName, memberName, memberNumber]);
           }
         });
 
@@ -136,7 +125,16 @@ function UploadPage({ city, onBack }) {
         Choose your Excel or CSV file for {city}. All groups in the file will be synced to the master sheet.
       </p>
 
-      <label className="field-label" htmlFor="file-upload" style={{ marginTop: '12px' }}>
+      <a
+        href="https://docs.google.com/spreadsheets/d/1DdNS0dhicuLkC-VK6Q1vknvA5UirHLcQfH7lC3OM4VY/edit?usp=sharing"
+        target="_blank"
+        rel="noreferrer"
+        className="sheet-link"
+      >
+        View Master Sheet →
+      </a>
+
+      <label className="field-label" htmlFor="file-upload" style={{ marginTop: '16px' }}>
         Upload Excel / CSV
       </label>
       <input
