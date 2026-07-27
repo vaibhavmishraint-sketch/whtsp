@@ -6,7 +6,7 @@ const apiBaseUrl = import.meta.env.VITE_API_URL ||
     ? 'http://127.0.0.1:3001'
     : '/api');
 const appScriptUrl = import.meta.env.VITE_APP_SCRIPT_URL;
-const syncUrl = appScriptUrl ? appScriptUrl : `${apiBaseUrl}/api/sync-sheet`;
+const syncUrl = appScriptUrl ? appScriptUrl : `${apiBaseUrl}/sync-sheet`;
 
 function parseExcelToRows(file) {
   return new Promise((resolve, reject) => {
