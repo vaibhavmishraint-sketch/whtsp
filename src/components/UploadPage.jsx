@@ -71,8 +71,8 @@ function parseExcelToRows(file) {
 }
 
 function UploadPage({ city, onBack }) {
-  const [sheetUrl, setSheetUrl] = useState(
-    'https://docs.google.com/spreadsheets/d/17nk2W-eNJVKbGa4fEdEoSrHOOPHidrLZRMkIrCklXBY/edit?usp=sharing'
+  const [sheetUrl] = useState(
+    'https://docs.google.com/spreadsheets/d/1DdNS0dhicuLkC-VK6Q1vknvA5UirHLcQfH7lC3OM4VY/edit?usp=sharing'
   );
   const [file, setFile] = useState(null);
   const [status, setStatus] = useState('');
@@ -131,23 +131,10 @@ function UploadPage({ city, onBack }) {
 
   return (
     <section className="card">
-      <p className="eyebrow">Upload contacts</p>
       <h1 className="selected-city-title">{city}</h1>
       <p className="subtext">
         Choose your Excel or CSV file for {city}. All groups in the file will be synced to the master sheet.
       </p>
-
-      <label className="field-label" htmlFor="sheet-url">
-        Google Sheet URL
-      </label>
-      <input
-        id="sheet-url"
-        className="input"
-        type="text"
-        value={sheetUrl}
-        onChange={(e) => setSheetUrl(e.target.value)}
-        placeholder="https://docs.google.com/spreadsheets/d/..."
-      />
 
       <label className="field-label" htmlFor="file-upload" style={{ marginTop: '12px' }}>
         Upload Excel / CSV
