@@ -36,14 +36,23 @@ async function syncToSheet({ city, fileName, rows }) {
   const meta = await sheets.spreadsheets.get({ spreadsheetId });
   const existingTabs = meta.data.sheets.map(s => s.properties.title);
 
+  let sheetId;
   if (!existingTabs.includes(city)) {
     const addRes = await sheets.spreadsheets.batchUpdate({
       spreadsheetId,
       requestBody: { requests: [{ addSheet: { properties: { title: city } } }] },
     });
-    const newSheetId = addRes.data.replies[0].addSheet.properties.sheetId;
+    sheetId = addRes.data.replies[0].addSheet.properties.sheetId;
+  } else {
+    sheetId = meta.data.sheets.find(s => s.properties.title === city).properties.sheetId;
+  }
 
-    // Add header row
+  // Check if tab is empty (no data at all)
+  const checkData = await sheets.spreadsheets.values.get({ spreadsheetId, range: `${city}!A1` });
+  const isEmpty = !checkData.data.values || checkData.data.values.length === 0;
+
+  if (isEmpty) {
+    // Write header row
     await sheets.spreadsheets.values.update({
       spreadsheetId,
       range: `${city}!A1`,
@@ -57,7 +66,7 @@ async function syncToSheet({ city, fileName, rows }) {
       requestBody: {
         requests: [{
           repeatCell: {
-            range: { sheetId: newSheetId, startRowIndex: 0, endRowIndex: 1 },
+            range: { sheetId, startRowIndex: 0, endRowIndex: 1 },
             cell: { userEnteredFormat: { textFormat: { bold: true } } },
             fields: 'userEnteredFormat.textFormat.bold',
           },
