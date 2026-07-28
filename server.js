@@ -75,14 +75,17 @@ async function syncToSheet({ city, fileName, rows }) {
     });
   }
 
-  // Get current row count to assign Sr. No. sequentially
-  const existing = await sheets.spreadsheets.values.get({
+  // Sr. No. = upload batch number (all rows in this upload get the same number)
+  const existingA = await sheets.spreadsheets.values.get({
     spreadsheetId,
     range: `${city}!A:A`,
   });
-  const existingCount = existing.data.values ? existing.data.values.length : 1;
-  // existingCount includes header row, so data starts at existingCount
-  const rowsWithSrNo = rows.map((row, i) => [existingCount + i, ...row]);
+  const existingValues = existingA.data.values || [];
+  // Count distinct Sr. No. values (excluding header row)
+  const dataRows = existingValues.slice(1);
+  const lastSrNo = dataRows.length > 0 ? Number(dataRows[dataRows.length - 1][0]) || 0 : 0;
+  const srNo = lastSrNo + 1;
+  const rowsWithSrNo = rows.map((row) => [srNo, ...row]);
 
   await sheets.spreadsheets.values.append({
     spreadsheetId,
