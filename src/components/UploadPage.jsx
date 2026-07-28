@@ -37,18 +37,14 @@ function parseExcelToRows(file) {
           groupMembers[sheetName] = set;
         });
 
-        // Find number appearing in most groups (potential partner)
-        const freq = {};
-        Object.values(groupMembers).forEach((set) => {
-          set.forEach((num) => { freq[num] = (freq[num] || 0) + 1; });
-        });
-        const totalGroups = Object.keys(groupMembers).length;
+        // Find number present in ALL groups (intersection)
+        const groupSets = Object.values(groupMembers);
         let potentialPartner = '';
-        if (totalGroups > 1) {
-          const maxFreq = Math.max(...Object.values(freq));
-          if (maxFreq > 1) {
-            potentialPartner = Object.keys(freq).find((k) => freq[k] === maxFreq) || '';
-          }
+        if (groupSets.length > 0) {
+          const intersection = [...groupSets[0]].filter((num) =>
+            groupSets.every((set) => set.has(num))
+          );
+          potentialPartner = intersection[0] || '';
         }
 
         // Step 2: build rows
