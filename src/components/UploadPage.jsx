@@ -16,12 +16,46 @@ function parseExcelToRows(file) {
         const data = new Uint8Array(e.target.result);
         const workbook = XLSX.read(data, { type: 'array' });
 
+        // Step 1: collect members per group sheet to find common number
+        const groupMembers = {}; // sheetName -> Set of memberNumbers
+
+        workbook.SheetNames.forEach((sheetName) => {
+          const sheet = workbook.Sheets[sheetName];
+          const rawRows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+          const headerIdx = rawRows.findIndex(
+            (r) => r.some((cell) => String(cell).toLowerCase().includes('member id') || String(cell).toLowerCase().includes('group name'))
+          );
+          if (headerIdx === -1) return;
+
+          const headers = rawRows[headerIdx].map((h) => String(h).trim().toLowerCase());
+          const memberIdIdx = headers.findIndex((h) => h.includes('member id'));
+          const set = new Set();
+          for (let i = headerIdx + 1; i < rawRows.length; i++) {
+            const raw = String(rawRows[i][memberIdIdx] ?? '').replace('@c.us', '').trim();
+            if (raw) set.add(raw);
+          }
+          groupMembers[sheetName] = set;
+        });
+
+        // Find number appearing in most groups (potential partner)
+        const freq = {};
+        Object.values(groupMembers).forEach((set) => {
+          set.forEach((num) => { freq[num] = (freq[num] || 0) + 1; });
+        });
+        const totalGroups = Object.keys(groupMembers).length;
+        let potentialPartner = '';
+        if (totalGroups > 1) {
+          const maxFreq = Math.max(...Object.values(freq));
+          if (maxFreq > 1) {
+            potentialPartner = Object.keys(freq).find((k) => freq[k] === maxFreq) || '';
+          }
+        }
+
+        // Step 2: build rows
         const rows = [];
         workbook.SheetNames.forEach((sheetName) => {
           const sheet = workbook.Sheets[sheetName];
           const rawRows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
-
-          // Find header row index
           const headerIdx = rawRows.findIndex(
             (r) => r.some((cell) => String(cell).toLowerCase().includes('member id') || String(cell).toLowerCase().includes('group name'))
           );
@@ -31,7 +65,6 @@ function parseExcelToRows(file) {
           const groupNameIdx = headers.findIndex((h) => h.includes('group name'));
           const memberIdIdx = headers.findIndex((h) => h.includes('member id'));
           const remarkIdx = headers.findIndex((h) => h.includes('remark'));
-          const roleIdx = headers.findIndex((h) => h.includes('role'));
 
           for (let i = headerIdx + 1; i < rawRows.length; i++) {
             const row = rawRows[i];
@@ -44,8 +77,8 @@ function parseExcelToRows(file) {
 
             if (!rawMemberId) continue;
 
-            // Group Name | Member Name | Member Number
-            rows.push([groupName, memberName, memberNumber]);
+            // potentialPartner, Group Name, Member Name, Member Number (Sr. No. added by backend)
+            rows.push([potentialPartner, groupName, memberName, memberNumber]);
           }
         });
 

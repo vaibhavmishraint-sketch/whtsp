@@ -48,7 +48,7 @@ async function syncToSheet({ city, fileName, rows }) {
       spreadsheetId,
       range: `${city}!A1`,
       valueInputOption: 'RAW',
-      requestBody: { values: [['Group Name', 'Member Name', 'Member Number']] },
+      requestBody: { values: [['Sr. No.', 'Potential Partner Number', 'Group Name', 'Member Name', 'Member Number']] },
     });
 
     // Bold the header row
@@ -66,11 +66,20 @@ async function syncToSheet({ city, fileName, rows }) {
     });
   }
 
+  // Get current row count to assign Sr. No. sequentially
+  const existing = await sheets.spreadsheets.values.get({
+    spreadsheetId,
+    range: `${city}!A:A`,
+  });
+  const existingCount = existing.data.values ? existing.data.values.length : 1;
+  // existingCount includes header row, so data starts at existingCount
+  const rowsWithSrNo = rows.map((row, i) => [existingCount + i, ...row]);
+
   await sheets.spreadsheets.values.append({
     spreadsheetId,
     range: `${city}!A1`,
     valueInputOption: 'RAW',
-    requestBody: { values: rows },
+    requestBody: { values: rowsWithSrNo },
   });
 
   return {
